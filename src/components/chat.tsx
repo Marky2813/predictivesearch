@@ -1,13 +1,65 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import axios from 'axios';
 import AddressInput from './AddressInput';
 
 type Message = {
   id: string;
   role: 'user' | 'assistant';
-  content: string;
+  content: string | ReactNode;
 }
 
 type InputMode = 'chat' | 'address';
+
+type AddressSuggestion = {
+  id: string;
+  label: string;
+}
+
+type AddressMetadata = {
+  full_address?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  locality_name?: string;
+  state_territory?: string;
+  postcode?: string;
+  latitude?: string;
+  longitude?: string;
+  gnaf_id?: string;
+  dpid?: string;
+}
+
+function AddressDetailsCard({ address }: { address: AddressMetadata }) {
+  return (
+    <div className="min-w-[260px] max-w-sm">
+      <div className="mb-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-400">Verified address</p>
+        <p className="mt-1 text-base font-semibold text-slate-800">{address.full_address}</p>
+      </div>
+      <div className="grid gap-2 text-sm">
+        <div className="rounded-2xl bg-slate-50 px-3 py-2">
+          <span className="text-slate-400">Suburb</span>
+          <p className="font-medium text-slate-700">{address.locality_name || "Not available"}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-2xl bg-slate-50 px-3 py-2">
+            <span className="text-slate-400">State</span>
+            <p className="font-medium text-slate-700">{address.state_territory || "N/A"}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 px-3 py-2">
+            <span className="text-slate-400">Postcode</span>
+            <p className="font-medium text-slate-700">{address.postcode || "N/A"}</p>
+          </div>
+        </div>
+        {(address.latitude || address.longitude) && (
+          <div className="rounded-2xl bg-indigo-50 px-3 py-2 text-indigo-700">
+            <span className="text-indigo-400">Coordinates</span>
+            <p className="font-medium">{address.latitude}, {address.longitude}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function Chat() {
   const [input, setInput] = useState('');
@@ -42,6 +94,52 @@ function Chat() {
       setInputMode('address')
     }, 2000);
   }
+
+  async function selectAddress(address: AddressSuggestion) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: address.label
+      }
+    ])
+    setInputMode('chat')
+
+    try {
+      const res = await axios.get("http://localhost:3000/api/address/metadata", {
+        params: { id: address.id }
+      });
+      const metadata = res.data.address;
+      const displayedFields = ["full_address", "locality_name", "state_territory", "postcode", "latitude", "longitude"];
+      const hiddenFields = Object.fromEntries(
+        Object.entries(metadata).filter(([key]) => !displayedFields.includes(key))
+      );
+
+      console.log("Address metadata response:", metadata);
+      console.log("Address metadata fields not displayed:", hiddenFields);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: <AddressDetailsCard address={metadata} />
+        }
+      ])
+    } catch (error) {
+      console.error("Unable to fetch address metadata:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: "I found the address, but couldn't load the extra details."
+        }
+      ])
+    }
+  }
+
   return (
     <>
       <div className="chat flex w-full max-w-3xl flex-col items-center">
@@ -90,7 +188,7 @@ function Chat() {
                 />
                 <button className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-indigo-500 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-100" onClick={() => sendMessage()}>Send</button>
               </div> :
-              <AddressInput />
+              <AddressInput onSelectAddress={selectAddress} />
             }
 
           </div>

@@ -1,11 +1,8 @@
-import { useState } from 'react'
 import Header from './components/header'
 import Chat from './components/chat'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900">
       <Header />
