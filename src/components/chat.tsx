@@ -1,9 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import axios from 'axios';
 import AddressInput from './AddressInput';
 
 type Message = {
-  id: string;
   role: 'user' | 'assistant';
   content: string | ReactNode;
 }
@@ -13,6 +12,11 @@ type InputMode = 'chat' | 'address';
 type AddressSuggestion = {
   id: string;
   label: string;
+}
+
+type Conversation = {
+  id:string,
+  messages:Message[] 
 }
 
 type AddressMetadata = {
@@ -64,46 +68,50 @@ function AddressDetailsCard({ address }: { address: AddressMetadata }) {
 function Chat() {
   const [input, setInput] = useState('');
   const [inputMode, setInputMode] = useState<InputMode>("chat");
-  const [messages, setMessages] = useState<Message[]>([
+  const [conversation, setConversation] = useState<Conversation>({
+        id:crypto.randomUUID(), 
+        messages:[
     {
-      id: "1",
       role: "assistant",
       content: "Hi! How can I help you?"
     }
-  ]);
+  ]
+    });
+
+  useEffect(() => {
+    console.log(conversation)
+  }, [conversation])
+
   function sendMessage() {
     //the message needs to be appended in a messages array. 
-    setMessages(prev => [
-      ...prev,
+    setConversation((prev) => (
       {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: input
+        ...prev, messages: [...prev.messages, {role: "user", content: input}]
       }
-    ])
+    ))
     setInput('');
     setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
+      setConversation((prev) => (
+      {
+        ...prev, messages: [...prev.messages, {
           role: "assistant",
           content: "Please enter your address."
-        }
-      ]);
+        }]
+      }
+    ))
       setInputMode('address')
     }, 2000);
   }
 
   async function selectAddress(address: AddressSuggestion) {
-    setMessages((prev) => [
-      ...prev,
+    setConversation((prev) => (
       {
-        id: crypto.randomUUID(),
+        ...prev, messages: [...prev.messages, {
         role: 'user',
         content: address.label
+      }]
       }
-    ])
+    ))
     setInputMode('chat')
 
     try {
@@ -119,24 +127,24 @@ function Chat() {
       console.log("Address metadata response:", metadata);
       console.log("Address metadata fields not displayed:", hiddenFields);
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
+      setConversation((prev) => (
+      {
+        ...prev, messages: [...prev.messages,  {
           role: 'assistant',
           content: <AddressDetailsCard address={metadata} />
-        }
-      ])
+        }]
+      }
+    ))
     } catch (error) {
       console.error("Unable to fetch address metadata:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
+      setConversation((prev) => (
+      {
+        ...prev, messages: [...prev.messages, {
           role: 'assistant',
           content: "I found the address, but couldn't load the extra details."
-        }
-      ])
+        }]
+      }
+    ))
     }
   }
 
@@ -155,7 +163,7 @@ function Chat() {
         <div className="flex h-[520px] w-full flex-col rounded-3xl border border-slate-200/80 bg-white/80 p-3 shadow-[0_24px_80px_rgba(148,163,184,0.20)] backdrop-blur">
           <div className="chat-box message-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-2xl bg-gradient-to-br from-white via-white to-indigo-50/30">
             <div className='space-y-4 p-5'>
-              {messages.map((message) => {
+              {conversation.messages.map((message) => {
                 return (
                   <div
                     key={message.id}
