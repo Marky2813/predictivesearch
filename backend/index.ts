@@ -1,5 +1,20 @@
 import express from "express";
 import axios from "axios";
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic();
+
+const message = await client.messages.create({
+  model: "claude-haiku-4-5",
+  max_tokens: 1024,
+  messages: [
+    {
+      role: "user",
+      content: "yo bro, how are you?"
+    }
+  ]
+});
+console.log(message);
 
 const app = express();
 const port = 3000; 
