@@ -9,6 +9,18 @@ const app = express();
 const port = 3000; 
 const addressfinderKey = process.env.ADDRESSFINDER_KEY;
 const addressfinderSecret = process.env.ADDRESSFINDER_SECRET;
+
+const tools:Anthropic.Tool[] = [
+  {
+    name: "get_customer_address", 
+    description: "use this tool to input the customer address, the address will be collected automatically and added in the messages array with a role of user",
+    input_schema: {
+      type:"object", 
+      properties: {}, 
+      required: []
+    }
+  }
+];
 app.use(express.json())
 
 app.use((req, res, next) => {
@@ -104,6 +116,10 @@ app.post("/api/chat", async (req, res) => {
   const message = await client.messages.create({
   model: "claude-haiku-4-5",
   max_tokens: 1024,
+  tools, 
+  system:`You are a helpful customer support assistant for a telecom company named Narula telecom. If a customer is interested in taking a wifi connection from us, your job is to take their address and then confirm it. 
+  When the address is inputed by the customer, there is an automation which is set up which returns a card displaying the customers address. you have to follow up that whether the address in the card is correct or not. if it is not correct then take the address input again.  
+  You are not allowed to use markdown formatting for your responses.`,
   messages: req.body.messages
 });
 

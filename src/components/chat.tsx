@@ -94,6 +94,10 @@ function Chat() {
     //instead of the manual reply, we need to send it to anthropic, add the response and send it back to the frontend 
     setInput('');
     let response = await axios.post("http://localhost:3000/api/chat", currentConversation)
+    console.log(response)
+    if(response.data.message.stop_reason == "tool_use") {
+      setInputMode('address');
+  }
     if(response.data.message.content[0].type === "text") {
       setConversation((prev) => (
       {
