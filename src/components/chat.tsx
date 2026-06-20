@@ -82,25 +82,39 @@ function Chat() {
     console.log(conversation)
   }, [conversation])
 
-  function sendMessage() {
+  async function sendMessage() {
     //the message needs to be appended in a messages array. 
-    setConversation((prev) => (
-      {
-        ...prev, messages: [...prev.messages, {role: "user", content: input}]
-      }
-    ))
+    const newMessage:Message = {
+      role:"user", 
+      content:input
+    }
+
+    const currentConversation = {...conversation, messages:[...conversation.messages, newMessage]}
+    setConversation(currentConversation)
+    //instead of the manual reply, we need to send it to anthropic, add the response and send it back to the frontend 
     setInput('');
-    setTimeout(() => {
+    let response = await axios.post("http://localhost:3000/api/chat", currentConversation)
+    if(response.data.message.content[0].type === "text") {
       setConversation((prev) => (
       {
         ...prev, messages: [...prev.messages, {
-          role: "assistant",
-          content: "Please enter your address."
-        }]
+        role: 'assistant',
+        content: response.data.message.content[0].text
+      }]
       }
     ))
-      setInputMode('address')
-    }, 2000);
+    }
+    // setTimeout(() => {
+    //   setConversation((prev) => (
+    //   {
+    //     ...prev, messages: [...prev.messages, {
+    //       role: "assistant",
+    //       content: "Please enter your address."
+    //     }]
+    //   }
+    // ))
+    //   setInputMode('address')
+    // }, 2000);
   }
 
   async function selectAddress(address: AddressSuggestion) {
@@ -166,7 +180,6 @@ function Chat() {
               {conversation.messages.map((message) => {
                 return (
                   <div
-                    key={message.id}
                     className={`
                 flex  ${message.role === "user" ? "justify-end" : "justify-start"}`} >
                     <div className={`

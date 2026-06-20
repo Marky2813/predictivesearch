@@ -4,22 +4,12 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic();
 
-const message = await client.messages.create({
-  model: "claude-haiku-4-5",
-  max_tokens: 1024,
-  messages: [
-    {
-      role: "user",
-      content: "yo bro, how are you?"
-    }
-  ]
-});
-console.log(message);
 
 const app = express();
 const port = 3000; 
 const addressfinderKey = process.env.ADDRESSFINDER_KEY;
 const addressfinderSecret = process.env.ADDRESSFINDER_SECRET;
+app.use(express.json())
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
@@ -105,6 +95,19 @@ app.get("/api/address/metadata", async (req, res) => {
 
     res.status(500).json({ error: "Unable to fetch address metadata" });
   }
+})
+
+app.post("/api/chat", async (req, res) => {
+  if(!req.body) {
+    res.status(400).send("No message sent")
+  }
+  const message = await client.messages.create({
+  model: "claude-haiku-4-5",
+  max_tokens: 1024,
+  messages: req.body.messages
+});
+
+  res.json({message});
 })
 
 app.listen(port, () => {
