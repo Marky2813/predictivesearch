@@ -2,11 +2,10 @@ import { useEffect, useState, type ReactNode } from 'react'
 import Anthropic from "@anthropic-ai/sdk";
 import axios from 'axios';
 import AddressInput from './AddressInput';
-import type { ContentBlock } from '@anthropic-ai/sdk/resources';
 
 type Message = {
   role: 'user' | 'assistant';
-  content: string | React.JSX.Element;
+  content: string | Anthropic.ToolResultBlockParam[];
 }
 
 type ClaudeMessage = {
@@ -39,44 +38,10 @@ type AddressMetadata = {
   dpid?: string;
 }
 
-
-
-function AddressDetailsCard({ address }: { address: AddressMetadata }) {
-  return (
-    <div className="min-w-[260px] max-w-sm">
-      <div className="mb-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-400">Verified address</p>
-        <p className="mt-1 text-base font-semibold text-slate-800">{address.full_address}</p>
-      </div>
-      <div className="grid gap-2 text-sm">
-        <div className="rounded-2xl bg-slate-50 px-3 py-2">
-          <span className="text-slate-400">Suburb</span>
-          <p className="font-medium text-slate-700">{address.locality_name || "Not available"}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-2xl bg-slate-50 px-3 py-2">
-            <span className="text-slate-400">State</span>
-            <p className="font-medium text-slate-700">{address.state_territory || "N/A"}</p>
-          </div>
-          <div className="rounded-2xl bg-slate-50 px-3 py-2">
-            <span className="text-slate-400">Postcode</span>
-            <p className="font-medium text-slate-700">{address.postcode || "N/A"}</p>
-          </div>
-        </div>
-        {(address.latitude || address.longitude) && (
-          <div className="rounded-2xl bg-indigo-50 px-3 py-2 text-indigo-700">
-            <span className="text-indigo-400">Coordinates</span>
-            <p className="font-medium">{address.latitude}, {address.longitude}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function Chat() {
   const [input, setInput] = useState('');
   const [inputMode, setInputMode] = useState<InputMode>("chat");
+  const [currentToolId, setCurrentToolId] = useState("")
   const [conversation, setConversation] = useState<Conversation>({
         id:crypto.randomUUID(), 
         messages:[
@@ -102,12 +67,18 @@ function Chat() {
         content:message.text
       }]}
     })
-    setConversation(conversationarr)
     if(response.data.tools) {
       if(response.data.tools.name === "get_customer_address") {
+        setCurrentToolId(response.data.tools.id)
+        console.log(response.data.tools.content)
+        conversationarr = {...conversationarr, messages:[...conversationarr.messages, {
+          role:'assistant', 
+          content:[response.data.tools.content]
+        }]}
         setInputMode("address");
       }
     }
+    setConversation(conversationarr)
 }
 
 
@@ -139,10 +110,20 @@ function Chat() {
   async function selectAddress(address: AddressSuggestion) {
     const newMessage:Message = {
       role:"user", 
-      content:address.label
+      content: address.label
     }
+    console.log(newMessage)
+    const newMessage2:Message = {
+      role:"user", 
+      content: [{
+        type:"tool_result", 
+        tool_use_id: currentToolId, 
+        content:address.label
+      }]
+    }
+    console.log(newMessage2)
     let currentConversation = {
-      ...conversation, messages:[...conversation.messages, newMessage]
+      ...conversation, messages:[...conversation.messages, newMessage2, newMessage]
     }
     console.log(currentConversation)
     setConversation(currentConversation)
@@ -190,6 +171,9 @@ function Chat() {
           <div className="chat-box message-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-2xl bg-gradient-to-br from-white via-white to-indigo-50/30">
             <div className='space-y-4 p-5'>
               {conversation.messages.map((message) => {
+                if(typeof message.content !== "string") {
+                  return null; 
+                }
                 return (
                   <div
                     className={`
