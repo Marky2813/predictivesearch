@@ -6,7 +6,9 @@ import { TextBlock } from "@anthropic-ai/sdk/resources";
 const client = new Anthropic();
 
 interface Tool {
-  name: string; 
+  content:Anthropic.Messages.ToolUseBlock,
+  name: string;
+  id:string
 }
 
 interface Result {
@@ -129,8 +131,7 @@ app.post("/api/chat", async (req, res) => {
   system:`You are a helpful customer support assistant for a telecom company named Narula telecom. 
   Narula telecom provides various telecom service with the most prominant and highly used is their wifi.
   
-  As a customer support agent, if the user is interested in taking a wifi connection, you need to take their address and once they have given you the address.
-  
+  As a customer support agent, if the user is interested in taking a wifi connection, you need to take their address using the tool provided and after they provide you the address.
   You need to confirm it, for example:
   "Thank you for providing your address, just for confirmation the address is 
   Unit:
@@ -152,7 +153,9 @@ app.post("/api/chat", async (req, res) => {
   //find because we have considered that no tools are running parrallely. 
   if(tool_call) {
     result.tools = {
-      name:tool_call.name
+      content:tool_call,
+      name:tool_call.name,
+      id:tool_call.id
     }
   }
 
