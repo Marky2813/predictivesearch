@@ -11,7 +11,7 @@ type Message = {
 
 type ClaudeMessage = {
   text: string, 
-  type: "text"
+  type: "text" | "tool"
 }
 
 type InputMode = 'chat' | 'address';
@@ -95,16 +95,19 @@ function Chat() {
   //     const tool_use = response.data.message.content.find((block: ContentBlock):block is Anthropic.ToolUseBlock => block.type === "tool_use")
   //     console.log(tool_use)
   // }
-  
     response.data.messages.map((message:ClaudeMessage) => {
       //add this message with a role of assistant in the conversation array 
       conversationarr = {...conversationarr, messages:[...conversationarr.messages, {
         role:"assistant", 
         content:message.text
       }]}
-
     })
-      setConversation(conversationarr)
+    setConversation(conversationarr)
+    if(response.data.tools) {
+      if(response.data.tools.name === "get_customer_address") {
+        setInputMode("address");
+      }
+    }
 }
 
 

@@ -1,9 +1,18 @@
 import express from "express";
 import axios from "axios";
 import Anthropic from "@anthropic-ai/sdk";
+import { TextBlock } from "@anthropic-ai/sdk/resources";
 
 const client = new Anthropic();
 
+interface Tool {
+  name: string; 
+}
+
+interface Result {
+  messages?: TextBlock[];
+  tools?: Tool;
+}
 
 const app = express();
 const port = 3000; 
@@ -134,13 +143,24 @@ app.post("/api/chat", async (req, res) => {
   You are not allowed to use markdown formatting for your responses.`,
   messages: req.body.messages
 });
+  // what if a query has both text and tool call, we need to maintian a result array and append the tool cool and messages both in that 
+  let result:Result = {
+    messages: [], 
+  
+  }
+  const tool_call = message.content.find((block) => block.type === "tool_use")
+  //find because we have considered that no tools are running parrallely. 
+  if(tool_call) {
+    result.tools = {
+      name:tool_call.name
+    }
+  }
 
   const hasText = message.content.filter((block) => block.type === "text")
   if(hasText.length > 0) {
-    res.json({
-      messages:hasText
-    })
+    result.messages = hasText
   }
+  res.json(result);
     // res.json({
     //   role:message.role,
     //   content:message.content[0].text 
