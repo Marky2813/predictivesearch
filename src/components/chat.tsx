@@ -1,10 +1,17 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import Anthropic from "@anthropic-ai/sdk";
 import axios from 'axios';
 import AddressInput from './AddressInput';
+import type { ContentBlock } from '@anthropic-ai/sdk/resources';
 
 type Message = {
   role: 'user' | 'assistant';
-  content: string | ReactNode;
+  content: string | React.JSX.Element;
+}
+
+type ClaudeMessage = {
+  text: string, 
+  type: "text"
 }
 
 type InputMode = 'chat' | 'address';
@@ -31,6 +38,8 @@ type AddressMetadata = {
   gnaf_id?: string;
   dpid?: string;
 }
+
+
 
 function AddressDetailsCard({ address }: { address: AddressMetadata }) {
   return (
@@ -78,9 +87,26 @@ function Chat() {
   ]
     });
 
-  useEffect(() => {
-    console.log(conversation)
-  }, [conversation])
+  async function messageClaude(conversationarr:Conversation) {
+  let response = await axios.post("http://localhost:3000/api/chat", conversationarr)
+    console.log(response.data)
+  //   if(response.data.message.stop_reason == "tool_use") {
+  //     // setInputMode('address');
+  //     const tool_use = response.data.message.content.find((block: ContentBlock):block is Anthropic.ToolUseBlock => block.type === "tool_use")
+  //     console.log(tool_use)
+  // }
+  
+    response.data.messages.map((message:ClaudeMessage) => {
+      //add this message with a role of assistant in the conversation array 
+      conversationarr = {...conversationarr, messages:[...conversationarr.messages, {
+        role:"assistant", 
+        content:message.text
+      }]}
+
+    })
+      setConversation(conversationarr)
+}
+
 
   async function sendMessage() {
     //the message needs to be appended in a messages array. 
@@ -93,21 +119,7 @@ function Chat() {
     setConversation(currentConversation)
     //instead of the manual reply, we need to send it to anthropic, add the response and send it back to the frontend 
     setInput('');
-    let response = await axios.post("http://localhost:3000/api/chat", currentConversation)
-    console.log(response)
-    if(response.data.message.stop_reason == "tool_use") {
-      setInputMode('address');
-  }
-    if(response.data.message.content[0].type === "text") {
-      setConversation((prev) => (
-      {
-        ...prev, messages: [...prev.messages, {
-        role: 'assistant',
-        content: response.data.message.content[0].text
-      }]
-      }
-    ))
-    }
+    messageClaude(currentConversation)
     // setTimeout(() => {
     //   setConversation((prev) => (
     //   {
@@ -122,15 +134,17 @@ function Chat() {
   }
 
   async function selectAddress(address: AddressSuggestion) {
-    setConversation((prev) => (
-      {
-        ...prev, messages: [...prev.messages, {
-        role: 'user',
-        content: address.label
-      }]
-      }
-    ))
+    const newMessage:Message = {
+      role:"user", 
+      content:address.label
+    }
+    let currentConversation = {
+      ...conversation, messages:[...conversation.messages, newMessage]
+    }
+    console.log(currentConversation)
+    setConversation(currentConversation)
     setInputMode('chat')
+    messageClaude(currentConversation)
 
     try {
       const res = await axios.get("http://localhost:3000/api/address/metadata", {
@@ -142,17 +156,8 @@ function Chat() {
         Object.entries(metadata).filter(([key]) => !displayedFields.includes(key))
       );
 
-      console.log("Address metadata response:", metadata);
-      console.log("Address metadata fields not displayed:", hiddenFields);
-
-      setConversation((prev) => (
-      {
-        ...prev, messages: [...prev.messages,  {
-          role: 'assistant',
-          content: <AddressDetailsCard address={metadata} />
-        }]
-      }
-    ))
+      // console.log("Address metadata response:", metadata);
+      // console.log("Address metadata fields not displayed:", hiddenFields);
     } catch (error) {
       console.error("Unable to fetch address metadata:", error);
       setConversation((prev) => (

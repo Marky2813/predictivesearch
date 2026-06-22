@@ -13,7 +13,7 @@ const addressfinderSecret = process.env.ADDRESSFINDER_SECRET;
 const tools:Anthropic.Tool[] = [
   {
     name: "get_customer_address", 
-    description: "use this tool to input the customer address, the address will be collected automatically and added in the messages array with a role of user",
+    description: "use this tool to input the customer address, the address will be collected automatically and added in the messages array with a role of user. Only use this tool once unless the customer specifices that the address inputed is wrong.",
     input_schema: {
       type:"object", 
       properties: {}, 
@@ -114,16 +114,38 @@ app.post("/api/chat", async (req, res) => {
     res.status(400).send("No message sent")
   }
   const message = await client.messages.create({
-  model: "claude-haiku-4-5",
+  model: "claude-sonnet-4-6",
   max_tokens: 1024,
   tools, 
-  system:`You are a helpful customer support assistant for a telecom company named Narula telecom. If a customer is interested in taking a wifi connection from us, your job is to take their address and then confirm it. 
-  When the address is inputed by the customer, there is an automation which is set up which returns a card displaying the customers address. you have to follow up that whether the address in the card is correct or not. if it is not correct then take the address input again.  
+  system:`You are a helpful customer support assistant for a telecom company named Narula telecom. 
+  Narula telecom provides various telecom service with the most prominant and highly used is their wifi.
+  
+  As a customer support agent, if the user is interested in taking a wifi connection, you need to take their address and once they have given you the address.
+  
+  You need to confirm it, for example:
+  "Thank you for providing your address, just for confirmation the address is 
+  Unit:
+  Street:
+  City:
+  Pincode:
+  "
+  
+  Upon address confirmation by the customer add the address to the database.  
   You are not allowed to use markdown formatting for your responses.`,
   messages: req.body.messages
 });
 
-  res.json({message});
+  const hasText = message.content.filter((block) => block.type === "text")
+  if(hasText.length > 0) {
+    res.json({
+      messages:hasText
+    })
+  }
+    // res.json({
+    //   role:message.role,
+    //   content:message.content[0].text 
+    // }) 
+  // res.json({message});
 })
 
 app.listen(port, () => {
